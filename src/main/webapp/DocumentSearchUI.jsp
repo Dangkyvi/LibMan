@@ -1,0 +1,9 @@
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" import="java.util.*,java.time.*,java.sql.SQLException,vn.ptit.library.model.*,vn.ptit.library.dao.*,vn.ptit.library.web.Ui" %>
+<% String pageTitle="Tìm thông tin tài liệu"; 
+String keyword=request.getParameter("keyword"),error=null;List<Document> documents=null;
+if(keyword!=null){if(keyword.isBlank())error="Vui lòng nhập từ khóa tìm kiếm.";else if(keyword.length()>255)error="Từ khóa tối đa 255 ký tự.";else try{documents=new DocumentDAO().searchByKeyword(keyword);}catch(SQLException e){application.log("Document search",e);response.setStatus(503);error="Không thể tải dữ liệu. Vui lòng thử lại sau.";}}
+ %>
+<%@ include file="/WEB-INF/jspf/header.jspf" %>
+<nav><a href="ReaderMainUI.jsp">Trang bạn đọc</a> / Tìm tài liệu</nav><section class="panel"><form accept-charset="UTF-8" method="get" action="DocumentSearchUI.jsp" class="inline"><label class="grow">Từ khóa tiêu đề<input name="keyword" value="<%=Ui.h(keyword)%>" placeholder="Ví dụ: Giải tích" maxlength="255" required></label><button>Tìm kiếm</button></form></section>
+<% if(error!=null){ %><p class="alert" role="alert"><%=Ui.h(error)%></p><% } else if(documents==null){ %><p class="empty">Nhập từ khóa để bắt đầu tìm kiếm tài liệu.</p><% }else if(documents.isEmpty()){ %><p class="empty">Không tìm thấy tài liệu phù hợp</p><% }else{ %><h2>Kết quả tìm kiếm <span class="count"><%=documents.size()%></span></h2><div class="table-wrap"><table><thead><tr><th>Tài liệu</th><th>Tác giả</th><th>Loại</th><th></th></tr></thead><tbody><% for(Document d:documents){ %><tr><td><%=Ui.h(d.getTitle())%></td><td><%=Ui.h(d.getAuthor())%></td><td><span class="tag"><%=Ui.h(d.getDocumentType().getName())%></span></td><td><a href="DocumentDetailsUI.jsp?documentId=<%=d.getId()%>">Xem chi tiết</a></td></tr><% } %></tbody></table></div><% } %>
+<%@ include file="/WEB-INF/jspf/footer.jspf" %>

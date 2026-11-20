@@ -1,0 +1,9 @@
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" import="java.util.*,java.time.*,java.sql.SQLException,vn.ptit.library.model.*,vn.ptit.library.dao.*,vn.ptit.library.web.Ui" %>
+<% String pageTitle="Thống kê độc giả theo số lần mượn"; String error=null;LocalDate[] dates=null;try{dates=Ui.period(request.getParameter("startDate"),request.getParameter("endDate"));}catch(IllegalArgumentException e){response.setStatus(400);error=e.getMessage();}
+List<ReaderStatistic> statistics=null;
+if(error==null)try{statistics=new ReaderStatisticDAO().getLoanStatistics(dates[0],dates[1]);}catch(SQLException e){application.log("Reader statistics",e);response.setStatus(503);error="Không thể tải dữ liệu. Vui lòng thử lại sau.";} %>
+<%@ include file="/WEB-INF/jspf/header.jspf" %>
+<nav><a href="ReportUI.jsp">Báo cáo</a> / <a href="StatisticPeriodUI.jsp">Chọn kỳ thống kê</a> / Kết quả</nav>
+<% if(error!=null){ %><p class="alert"><%=Ui.h(error)%></p><% }else{ %><p class="period">Khoảng thống kê: <strong><%=Ui.date(dates[0])%></strong> đến <strong><%=Ui.date(dates[1])%></strong></p><p>Chỉ hiển thị độc giả có ít nhất một phiếu trong kỳ. Mỗi phiếu được tính là một lần mượn.</p>
+<% if(statistics.isEmpty()){ %><p class="empty">Không có lượt mượn trong khoảng thời gian đã chọn.</p><% }else{ %><div class="table-wrap"><table><thead><tr><th>Thứ tự</th><th>Họ tên độc giả</th><th>Số lần mượn</th></tr></thead><tbody><% int rank=0;for(ReaderStatistic s:statistics){ %><tr><td><%=++rank%></td><td><a href="ReaderBorrowingHistoryUI.jsp?readerId=<%=s.getReader().getId()%>&amp;startDate=<%=dates[0]%>&amp;endDate=<%=dates[1]%>"><%=Ui.h(s.getReader().getFullname())%></a></td><td><strong><%=s.getLoanCount()%></strong></td></tr><% } %></tbody></table></div><% }} %>
+<%@ include file="/WEB-INF/jspf/footer.jspf" %>

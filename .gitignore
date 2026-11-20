@@ -1,0 +1,10 @@
+target/
+.env
+.idea/
+*.iml
+.venv/
+
+.runtime/
+database/
+.github/
+scripts/
