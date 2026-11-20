@@ -33,14 +33,6 @@ Trang báo cáo có ba lựa chọn: thống kê độc giả, thống kê tài 
 ```text
 LibMan/
 ├── pom.xml                         # Dependency và cấu hình build Maven
-├── database/
-│   ├── 00-create-database.sql       # Tạo và chọn database library
-│   ├── schema.sql                  # Các bảng, khóa ngoại và chỉ mục
-│   ├── seed.sql                    # Tài khoản và dữ liệu mẫu cơ bản
-│   └── demo-large.sql              # Dữ liệu demo mở rộng, tùy chọn
-├── scripts/
-│   ├── start-local.sh              # Triển khai WAR vào Tomcat local đã cấu hình
-│   └── stop-local.sh               # Dừng Tomcat local
 └── src/
     ├── main/
     │   ├── java/vn/ptit/library/
