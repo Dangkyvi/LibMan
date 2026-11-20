@@ -1,9 +1,96 @@
-<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" import="java.util.*,java.time.*,java.sql.SQLException,vn.ptit.library.model.*,vn.ptit.library.dao.*,vn.ptit.library.web.Ui" %>
-<% String pageTitle="Chi tiết tài liệu"; String error=null;Document document=null;
-try{int id=Ui.id(request.getParameter("documentId"));document=new DocumentDAO().getDetails(id);if(document==null){response.setStatus(404);error="Tài liệu không tồn tại.";}}
-catch(IllegalArgumentException e){response.setStatus(400);error=e.getMessage();}catch(SQLException e){application.log("Document details",e);response.setStatus(503);error="Không thể tải dữ liệu. Vui lòng thử lại sau.";} %>
+<%@ page
+    contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"
+    import="java.util.*,java.time.*,java.sql.SQLException,vn.ptit.library.model.*,vn.ptit.library.dao.*,vn.ptit.library.web.Ui"
+%>
+
+<%
+    String pageTitle = "Chi tiết tài liệu";
+    String error = null;
+    Document document = null;
+    try {
+        int id = Ui.id(request.getParameter("documentId"));
+        document = new DocumentDAO().getDetails(id);
+        if (document == null) {
+            response.setStatus(404);
+            error = "Tài liệu không tồn tại.";
+        }
+    } catch (IllegalArgumentException e) {
+        response.setStatus(400);
+        error = e.getMessage();
+    } catch (SQLException e) {
+        application.log("Document details", e);
+        response.setStatus(503);
+        error = "Không thể tải dữ liệu. Vui lòng thử lại sau.";
+    }
+%>
+
 <%@ include file="/WEB-INF/jspf/header.jspf" %>
-<nav><a href="DocumentSearchUI.jsp">Tìm tài liệu</a> / Chi tiết</nav><% if(error!=null){ %><p class="alert"><%=Ui.h(error)%></p><% }else{Document d=document; %><section class="panel"><span class="tag"><%=Ui.h(d.getDocumentType().getName())%></span><h2><%=Ui.h(d.getTitle())%></h2><dl>
-<dt>Mã tài liệu</dt><dd><%=d.getId()%></dd><dt>Tác giả</dt><dd><%=Ui.h(d.getAuthor())%></dd><dt>Ngày xuất bản</dt><dd><%=Ui.h(Ui.date(d.getPublicationYear()))%></dd><dt>Nhà xuất bản</dt><dd><%=Ui.h(d.getPublisher())%></dd><dt>Số lượng</dt><dd><%=d.getQuantity()%></dd><dt>Vị trí lưu trữ</dt><dd><%=Ui.h(d.getStorageLocation())%></dd><dt>Mô tả</dt><dd><%=Ui.h(d.getDescription())%></dd>
-<% if(d instanceof Book){Book b=(Book)d; %><dt>ISBN</dt><dd><%=Ui.h(b.getIsbn())%></dd><dt>Số trang</dt><dd><%=b.getPageCount()%></dd><% }else if(d instanceof Textbook){Textbook b=(Textbook)d; %><dt>Môn học</dt><dd><%=Ui.h(b.getSubject())%></dd><dt>Chuyên ngành</dt><dd><%=Ui.h(b.getMajor())%></dd><% }else if(d instanceof Magazine){Magazine b=(Magazine)d; %><dt>Số phát hành</dt><dd><%=Ui.h(b.getIssueNumber())%></dd><dt>Kỳ phát hành</dt><dd><%=Ui.h(b.getIssuePeriod())%></dd><% } %></dl></section><% } %>
+
+<nav>
+    <a href="DocumentSearchUI.jsp">Tìm tài liệu</a>
+    / Chi tiết
+</nav>
+<% if (error != null) { %>
+    <p class="alert"><%=Ui.h(error)%></p>
+<%
+    } else {
+        Document d = document;
+%>
+    <section class="panel">
+        <span class="tag"><%=Ui.h(d.getDocumentType().getName())%></span>
+        <h2><%=Ui.h(d.getTitle())%></h2>
+        <dl>
+            <dt>Mã tài liệu</dt>
+            <dd><%=d.getId()%></dd>
+            <dt>Tác giả</dt>
+            <dd><%=Ui.h(d.getAuthor())%></dd>
+            <dt>Ngày xuất bản</dt>
+            <dd><%=Ui.h(Ui.date(d.getPublicationYear()))%></dd>
+            <dt>Nhà xuất bản</dt>
+            <dd><%=Ui.h(d.getPublisher())%></dd>
+            <dt>Số lượng</dt>
+            <dd><%=d.getQuantity()%></dd>
+            <dt>Vị trí lưu trữ</dt>
+            <dd><%=Ui.h(d.getStorageLocation())%></dd>
+            <dt>Mô tả</dt>
+            <dd><%=Ui.h(d.getDescription())%></dd>
+            <%
+                if (d instanceof Book) {
+                    Book b = (Book) d;
+            %>
+                <dt>ISBN</dt>
+                <dd><%=Ui.h(b.getIsbn())%></dd>
+                <dt>Số trang</dt>
+                <dd><%=b.getPageCount()%></dd>
+            <%
+                } else if (d instanceof Textbook) {
+                    Textbook b = (Textbook) d;
+            %>
+                <dt>Môn học</dt>
+                <dd><%=Ui.h(b.getSubject())%></dd>
+                <dt>Chuyên ngành</dt>
+                <dd><%=Ui.h(b.getMajor())%></dd>
+            <%
+                } else if (d instanceof Magazine) {
+                    Magazine b = (Magazine) d;
+            %>
+                <dt>Số phát hành</dt>
+                <dd><%=Ui.h(b.getIssueNumber())%></dd>
+                <dt>Kỳ phát hành</dt>
+                <dd><%=Ui.h(b.getIssuePeriod())%></dd>
+            <% } %>
+        </dl>
+    </section>
+<% } %>
+
+<div class="actions">
+    <form accept-charset="UTF-8" method="get" action="DocumentSearchUI.jsp">
+        <% if (request.getParameter("keyword") != null) { %>
+            <input type="hidden" name="keyword" value="<%=Ui.h(request.getParameter("keyword"))%>">
+        <% } %>
+        <button type="submit" name="btnBack">Quay lại</button>
+    </form>
+</div>
+
 <%@ include file="/WEB-INF/jspf/footer.jspf" %>

@@ -1,16 +1,126 @@
-# Thư viện PTIT — MySQL local và Tomcat
+# LibMan — Hệ thống tra cứu và báo cáo thư viện
 
-Ứng dụng Java JSP/JavaBean/JDBC, đóng gói WAR. Chạy với **MySQL cài trên máy** và **Tomcat 10.1**; Java 17 trở lên, Maven 3.9. Không còn cấu hình Docker hay máy chủ demo. Ứng dụng không tự tạo bảng hoặc nạp dữ liệu. Bạn tự thực hiện các lệnh SQL dưới đây.
+LibMan là ứng dụng web phục vụ bạn đọc và nhân viên quản lý thư viện, được xây dựng bằng Java JSP, JavaBean và JDBC. Dự án tập trung vào hai nghiệp vụ: **tra cứu tài liệu** và **thống kê độc giả theo số lần mượn**, từ kết quả tổng hợp đến chi tiết từng phiếu.
 
-## 1. Tự tạo database, bảng và dữ liệu
+## Chức năng
 
-Mở terminal tại thư mục repository, đăng nhập MySQL local bằng tài khoản của bạn:
+| Vai trò | Chức năng hiện có |
+| --- | --- |
+| Bạn đọc | Đăng nhập, tìm tài liệu theo tiêu đề, xem thông tin chi tiết và quay lại kết quả tìm kiếm. |
+| Nhân viên quản lý | Chọn kỳ thống kê, xem số lần mượn của từng độc giả, xem lịch sử mượn và các tài liệu trên mỗi phiếu. |
+
+Tài liệu gồm ba loại: sách tham khảo, giáo trình và tạp chí. Trang chi tiết hiển thị thông tin chung cùng thuộc tính riêng của từng loại, như ISBN, môn học hoặc kỳ phát hành.
+
+Trang báo cáo có ba lựa chọn: thống kê độc giả, thống kê tài liệu và thống kê nhà cung cấp. **Hiện chỉ báo cáo độc giả theo số lần mượn được triển khai**; hai nút còn lại chưa có hành động. Dự án chưa có giao diện lập phiếu mượn, trả hoặc nhập tài liệu.
+
+## Công nghệ
+
+| Thành phần | Công nghệ |
+| --- | --- |
+| Ngôn ngữ | Java 17 trở lên |
+| Giao diện | JSP, HTML, CSS |
+| Xử lý HTTP và phiên đăng nhập | Jakarta Servlet 6.0, Filter, HttpSession |
+| Truy cập dữ liệu | JDBC, MySQL Connector/J |
+| Cơ sở dữ liệu khi chạy ứng dụng | MySQL |
+| Máy chủ ứng dụng | Apache Tomcat 10.1 |
+| Build | Maven 3.9 |
+| Kiểm thử | JUnit 5, H2 trong bộ nhớ, embedded Tomcat/Jasper |
+
+Ứng dụng được đóng gói thành `target/library.war`. Cần Tomcat 10.1 để hỗ trợ Jakarta Servlet 6.0; Tomcat 9 không tương thích với cấu hình này.
+
+## Cấu trúc dự án
+
+```text
+LibMan/
+├── pom.xml                         # Dependency và cấu hình build Maven
+├── database/
+│   ├── 00-create-database.sql       # Tạo và chọn database library
+│   ├── schema.sql                  # Các bảng, khóa ngoại và chỉ mục
+│   ├── seed.sql                    # Tài khoản và dữ liệu mẫu cơ bản
+│   └── demo-large.sql              # Dữ liệu demo mở rộng, tùy chọn
+├── scripts/
+│   ├── start-local.sh              # Triển khai WAR vào Tomcat local đã cấu hình
+│   └── stop-local.sh               # Dừng Tomcat local
+└── src/
+    ├── main/
+    │   ├── java/vn/ptit/library/
+    │   │   ├── config/             # Đọc cấu hình và mở kết nối JDBC
+    │   │   ├── dao/                # DAO cha và các lớp truy vấn nghiệp vụ
+    │   │   ├── model/              # JavaBean biểu diễn dữ liệu
+    │   │   ├── security/           # Đăng nhập, phân quyền, xử lý mật khẩu
+    │   │   └── web/                # Kiểm tra tham số, định dạng và escape HTML
+    │   ├── resources/
+    │   │   └── database.properties # Cấu hình kết nối MySQL
+    │   └── webapp/
+    │       ├── *.jsp               # Các trang giao diện và xử lý yêu cầu
+    │       ├── assets/style.css    # Định dạng giao diện
+    │       └── WEB-INF/
+    │           ├── web.xml         # Filter, session và cấu hình UTF-8
+    │           ├── jspf/           # Header/footer dùng chung
+    │           ├── Error.jsp       # Trang thông báo lỗi
+    │           └── Denied.jsp      # Trang từ chối truy cập
+    └── test/java/vn/ptit/library/
+        └── LibraryTest.java        # Kiểm thử DAO, HTTP/JSP và dữ liệu demo
+```
+
+### Cách các thành phần phối hợp
+
+```text
+Trình duyệt → AccessFilter → JSP → DAO → JDBC → MySQL
+                              ↑      ↓
+                              └─ JavaBean
+```
+
+`AccessFilter` thiết lập mã hóa và kiểm tra quyền truy cập. JSP nhận tham số, gọi DAO và hiển thị kết quả qua các JavaBean. Các lời gọi nghiệp vụ nằm trực tiếp trong JSP; dự án chưa tách một lớp controller riêng.
+
+Tất cả DAO nghiệp vụ kế thừa [DAO.java](src/main/java/vn/ptit/library/dao/DAO.java). Lớp cha cung cấp `openConnection()`, còn từng phương thức truy vấn dùng `PreparedStatement` và try-with-resources để đóng kết nối, câu lệnh và kết quả.
+
+| DAO | Trách nhiệm |
+| --- | --- |
+| `MemberDAO` | Xác thực tài khoản đăng nhập. |
+| `DocumentDAO` | Tìm kiếm và lấy chi tiết từng loại tài liệu. |
+| `ReaderStatisticDAO` | Đếm số phiếu mượn của độc giả trong kỳ. |
+| `BorrowingReceiptDAO` | Lấy thông tin độc giả và danh sách phiếu mượn. |
+| `BorrowingReceiptDetailDAO` | Lấy các dòng tài liệu của một phiếu mượn. |
+
+### Luồng sử dụng chính
+
+- **Bạn đọc:** Đăng nhập → Trang bạn đọc → Tìm tài liệu → Xem chi tiết → Quay lại kết quả.
+- **Quản lý:** Đăng nhập → Báo cáo → Thống kê độc giả → Chọn kỳ → Xem độc giả → Xem phiếu → Chi tiết tài liệu đã mượn.
+
+Ngày bắt đầu và kết thúc được giữ khi chuyển từ thống kê sang lịch sử. Các bảng có nút **Xem** riêng cho từng dòng.
+
+## Cơ sở dữ liệu
+
+Schema gồm các nhóm thành viên, tài liệu, mượn/trả và nhập tài liệu từ nhà cung cấp. Xem đầy đủ tại [database/schema.sql](database/schema.sql).
+
+Các quan hệ chính:
+
+- `tblMember` chứa thông tin tài khoản; `tblReader` và các bảng nhân viên biểu diễn vai trò tương ứng.
+- `tblDocument` chứa thông tin chung; `tblBook`, `tblTextbook`, `tblMagazine` chứa thuộc tính riêng, dùng chung khóa tài liệu.
+- Một độc giả có nhiều phiếu mượn; mỗi phiếu do một thủ thư lập.
+- **Một phiếu mượn có nhiều chi tiết mượn; một tài liệu có thể xuất hiện trong nhiều chi tiết mượn.** Hai khóa ngoại `tblBorrowingReceiptid` và `tblDocumentid` nằm trên `tblBorrowingReceiptDetail`.
+- Phiếu nhập và phiếu trả cũng có bảng chi tiết riêng. Schema hiện tại chưa có khóa ngoại trực tiếp từ phiếu trả đến phiếu mượn.
+
+Số lần mượn được tính theo **số phiếu**, không theo số dòng chi tiết hoặc số cuốn sách. Thống kê lấy ngày mượn trong khoảng đã chọn, gồm cả hai ngày biên, hiển thị độc giả có ít nhất một phiếu và sắp xếp giảm dần số phiếu.
+
+## Cài đặt và chạy
+
+### 1. Chuẩn bị môi trường
+
+Cài JDK 17 trở lên, Maven 3.9, MySQL và Tomcat 10.1. Sau khi lấy mã nguồn, mở terminal tại thư mục chứa `pom.xml`.
+
+Các file SQL trong `database/` cần có sẵn để khởi tạo dữ liệu và chạy bộ kiểm thử. Tomcat được cài riêng trên máy; thư mục `.runtime/` không đi kèm mã nguồn.
+
+### 2. Khởi tạo dữ liệu
+
+Với database mới, mở MySQL từ thư mục dự án:
 
 ```sh
 mysql --default-character-set=utf8mb4 -u root -p
 ```
 
-Trong cửa sổ MySQL, tự chạy theo thứ tự:
+Chạy lần lượt trong MySQL:
 
 ```sql
 SOURCE database/00-create-database.sql;
@@ -18,137 +128,93 @@ SOURCE database/schema.sql;
 SOURCE database/seed.sql;
 ```
 
+`00-create-database.sql` tạo và chọn database `library`. Chỉ chạy schema và seed khi chưa có các bảng, dữ liệu này. Ứng dụng không tự tạo bảng hoặc tự nạp SQL.
+
+Có thể nạp thêm dữ liệu demo **một lần**, sau seed:
+
 ```sql
-SET NAMES utf8mb4;
-CREATE DATABASE IF NOT EXISTS `library` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `library`;
+SOURCE database/demo-large.sql;
+EXIT;
 ```
 
-Tên database được bao bằng dấu backtick vì `LIBRARY` là từ khoá dành riêng ở một số phiên bản MySQL mới. JDBC URL vẫn dùng `/library`, không thêm backtick.
+File mở rộng dùng các ID từ 10000 trở lên, bổ sung 50 độc giả, 3 thủ thư, 90 tài liệu, 6 nhà cung cấp, 592 phiếu mượn và 1.776 chi tiết mượn, cùng dữ liệu nhập/trả tương ứng. File dùng INSERT và không ghi đè dữ liệu cũ; cần tránh các ID đã được sử dụng. Nếu có lỗi khi nạp, chạy `ROLLBACK;` trong cùng phiên và kiểm tra nguyên nhân trước khi thử lại.
 
-Lệnh đầu tạo database `library` với `utf8mb4` và chọn database này bằng câu lệnh SQL bên dưới. Lệnh thứ hai tạo các bảng/khóa ngoại. Lệnh thứ ba thêm dữ liệu mẫu; có thể bỏ qua nếu bạn tự nhập dữ liệu và tài khoản có mật khẩu hash phù hợp. Nếu mở MySQL ở thư mục khác, dùng đường dẫn tuyệt đối đến từng file SQL. Nếu dùng MySQL Workbench, mở rồi thực thi ba file trên theo thứ tự, với database `library` được chọn cho schema/seed.
+### 3. Cấu hình kết nối
 
-Chỉ nạp `schema.sql` và `seed.sql` vào database mới chưa có các bảng/dữ liệu này. Các script không xoá hay ghi đè bảng cũ. Toàn bộ câu lệnh tạo bảng nằm tại [database/schema.sql](database/schema.sql); dữ liệu mẫu nằm tại [database/seed.sql](database/seed.sql).
-
-Nếu muốn dùng tài khoản riêng cho ứng dụng, tự chạy các lệnh sau bằng tài khoản quản trị MySQL, thay mật khẩu ví dụ:
-
-```sql
-CREATE USER 'library'@'localhost' IDENTIFIED BY 'ThayMatKhauCuaBan';
-GRANT SELECT ON `library`.* TO 'library'@'localhost';
-```
-
-Hai module hiện tại chỉ đọc dữ liệu nên quyền `SELECT` là đủ. Nếu tài khoản `library` đã tồn tại, dùng mật khẩu của tài khoản đó và bỏ qua `CREATE USER`. Bạn cũng có thể cấu hình một tài khoản MySQL local sẵn có có quyền đọc database.
-
-## 2. Cấu hình kết nối MySQL local
-
-Sửa [src/main/resources/database.properties](src/main/resources/database.properties) trước khi build:
+Sửa [database.properties](src/main/resources/database.properties) theo MySQL trên máy:
 
 ```properties
 DB_URL=jdbc:mysql://localhost:3306/library?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&connectionTimeZone=Asia/Ho_Chi_Minh
-DB_USER=library
-DB_PASSWORD=ThayMatKhauCuaBan
+DB_USER=your_mysql_user
+DB_PASSWORD=your_mysql_password
 ```
 
-Thay `DB_USER`/`DB_PASSWORD` bằng tài khoản MySQL local của bạn; đổi cổng `3306` nếu MySQL dùng cổng khác. Đây là thông tin kết nối database, khác với tài khoản đăng nhập website. Không đưa mật khẩu thật vào repository chia sẻ.
+Tài khoản này phải có quyền đọc database `library`; đây là tài khoản MySQL, khác với tài khoản đăng nhập website. Không commit mật khẩu thật. Có thể dùng Java system properties hoặc biến môi trường của tiến trình Tomcat với cùng tên biến; thứ tự ưu tiên là **system property → biến môi trường → file cấu hình**.
 
-Nếu không muốn ghi mật khẩu trong file, đặt `DB_URL`, `DB_USER`, `DB_PASSWORD` dưới dạng biến môi trường **của tiến trình Tomcat** hoặc Java system properties. Thứ tự ưu tiên: Java system property → biến môi trường → `database.properties`. File cấu hình được đóng gói trong WAR nên cần build và triển khai lại khi sửa file.
+### 4. Build và triển khai
 
-## 3. Build và chạy trên Tomcat local
-
-Tomcat 10.1.61 đã được cài riêng cho dự án tại `.runtime/apache-tomcat-10.1.61` (không đưa vào Git). Cổng HTTP chỉ lắng nghe trên `127.0.0.1:8080`.
-
-```sh
-# Chạy lại sau khi build WAR hoặc cấu hình lại database:
-./scripts/start-local.sh
-# Dừng Tomcat:
-./scripts/stop-local.sh
-```
-
-Mở **http://localhost:8080/library/**. Script khởi động chép WAR đã build vào Tomcat; không tự build, không tạo bảng hoặc nạp SQL. Sau khi thay code hay `database.properties`, chạy `mvn clean package`, dừng rồi khởi động lại bằng hai script trên. Log nằm ở `.runtime/apache-tomcat-10.1.61/logs/catalina.out`.
-
-Nếu dùng bản Tomcat khác hoặc checkout mới chưa có `.runtime`, làm theo các bước thủ công bên dưới.
-
+Build và chạy kiểm thử:
 
 ```sh
 mvn clean verify
 ```
 
-Chép `target/library.war` vào thư mục `webapps` của Tomcat 10.1, rồi khởi động Tomcat. Nếu Tomcat đang chạy, triển khai lại WAR theo cơ chế của Tomcat. Truy cập:
-
-**http://localhost:8080/library/**
-
-Ví dụ khi đã đặt biến `CATALINA_BASE` và `CATALINA_HOME` trỏ tới Tomcat local:
+Đặt `CATALINA_HOME` trỏ tới bản Tomcat 10.1 đã cài, ví dụ:
 
 ```sh
+export CATALINA_HOME="/path/to/apache-tomcat-10.1"
+export CATALINA_BASE="$CATALINA_HOME"
 cp target/library.war "$CATALINA_BASE/webapps/library.war"
 "$CATALINA_HOME/bin/startup.sh"
 ```
 
-Không dùng Tomcat 9 vì ứng dụng sử dụng Jakarta Servlet 6.0 / JSP 3.1. Build dùng Java 17 làm mức đích; đã kiểm tra trên Java 21. Maven tải dependency khi chưa có trong cache, không cần MySQL để build hoặc chạy bộ kiểm thử tự động.
+Mở **http://localhost:8080/library/** nếu Tomcat dùng cổng mặc định 8080. Dừng máy chủ bằng:
 
-## 4. Tài khoản mẫu và cách kiểm tra
+```sh
+"$CATALINA_HOME/bin/shutdown.sh"
+```
 
-Sau khi bạn tự nạp `seed.sql`:
+Nếu máy đã có Tomcat tại `.runtime/apache-tomcat-10.1.61`, có thể dùng các script tiện ích thay cho bước triển khai thủ công:
 
-| Vai trò | Tên đăng nhập | Mật khẩu |
-|---|---|---|
+```sh
+mvn clean package
+./scripts/start-local.sh
+```
+
+Sau khi sửa code hoặc file cấu hình, build lại, dừng rồi khởi động lại:
+
+```sh
+mvn clean package
+./scripts/stop-local.sh
+./scripts/start-local.sh
+```
+
+Script chỉ chép WAR và chạy Tomcat đã cài, không tự cài Tomcat hoặc nạp database.
+
+## Tài khoản và kịch bản demo
+
+Sau khi nạp `seed.sql`:
+
+| Vai trò | Tên đăng nhập | Mật khẩu demo |
+| --- | --- | --- |
 | Bạn đọc | `reader` | `ThuVien@123` |
-| Nhân viên quản lý | `manager` | `ThuVien@123` |
+| Quản lý | `manager` | `ThuVien@123` |
 
-Seed còn có `reader2` (1 lượt trong kỳ), `reader0` (0 lượt), cùng mật khẩu. `librarian` phục vụ liên kết nhân viên trên phiếu, không có quyền đăng nhập vào hai module.
+- Đăng nhập bạn đọc, tìm **Giải tích**, mở chi tiết một tài liệu rồi dùng nút **Quay lại**.
+- Đăng nhập quản lý, chọn thống kê độc giả trong kỳ **01/11/2026–30/11/2026**. Với seed cơ bản, Nguyễn Minh Anh có 2 phiếu và Phạm Hoàng Nam có 1 phiếu trong kỳ.
+- Nếu đã nạp demo mở rộng, chọn **01/10/2026–30/11/2026** để xem nhiều kết quả. Bấm **Xem** tại dòng độc giả, rồi **Xem** tại dòng phiếu.
 
-- Với bạn đọc: chọn **Tìm tài liệu**, tìm `Giải tích`, chọn **Xem chi tiết**.
-- Với quản lý: chọn **Xem báo cáo** → **Thống kê độc giả theo số lần mượn**, chọn từ **01/11/2026** đến **30/11/2026**, bấm **Xem thống kê**. Dữ liệu mẫu cho Nguyễn Minh Anh 2 phiếu, Phạm Hoàng Nam 1 phiếu; bấm tên rồi mã phiếu để xem chi tiết.
-- Các nút chỉ chứa tên thao tác; không chứa mô tả. Trạng thái `BORROWED`/`RETURNED` hiển thị là **Đang mượn**/**Đã trả**; dữ liệu trạng thái trong database vẫn giữ nguyên.
+Dữ liệu demo mở rộng có thêm tài khoản `demo.reader01` đến `demo.reader50`, cùng mật khẩu demo ở trên. Dữ liệu sử dụng ngày cố định để có thể lặp lại kịch bản trình bày.
 
-## Tiếng Việt và UTF-8
-
-JSP, response HTTP, request và biểu mẫu được cấu hình UTF-8; MySQL dùng `utf8mb4`; JDBC dùng UTF-8 và collation `utf8mb4_unicode_ci`. Dùng tùy chọn `--default-character-set=utf8mb4` khi nhập SQL như hướng dẫn trên. Ngày trên giao diện hiển thị `dd/MM/yyyy`; giá trị truyền trong URL và ô chọn ngày giữ định dạng `yyyy-MM-dd`.
-
-Tomcat 10.1 mặc định giải mã URL bằng UTF-8. Nếu Tomcat local đã bị cấu hình sang encoding khác, thêm `URIEncoding="UTF-8"` vào Connector HTTP trong `conf/server.xml` rồi khởi động lại Tomcat. Nếu dữ liệu đã bị lưu sai dấu trong database cũ, đổi encoding hiển thị không thể tự phục hồi dữ liệu đó; hãy nhập lại từ file SQL UTF-8 hoặc bản sao đúng dấu.
-
-## Luồng và hợp đồng truy vấn
-
-Các lời gọi dưới đây nằm trực tiếp trong JSP được chỉ định; không chuyển chúng sang Servlet/controller. DAO mở connection, dùng PreparedStatement, đóng connection/statement/result set bằng try-with-resources. JavaBean biểu diễn kết quả; JSP nhận kết quả và render, escape mọi dữ liệu/giá trị tham số có thể thay đổi bằng `Ui.h()`.
-
-| JSP gọi | DAO.phương thức | Đầu vào | Đầu ra |
-|---|---|---|---|
-| `DocumentSearchUI.jsp` | `DocumentDAO.searchByKeyword(String)` | `keyword` | `List<Document>` |
-| `DocumentDetailsUI.jsp` | `DocumentDAO.getDetails(int)` | `documentId` | `Document`, đối tượng thực là `Book`, `Textbook` hoặc `Magazine`; `null` nếu không tồn tại |
-| `ReaderStatisticsUI.jsp` | `ReaderStatisticDAO.getLoanStatistics(LocalDate, LocalDate)` | `startDate`, `endDate` | `List<ReaderStatistic>`, mỗi phần tử chứa `Reader` và `loanCount` |
-| `ReaderBorrowingHistoryUI.jsp` | `BorrowingReceiptDAO.getBorrowingReceipts(int, LocalDate, LocalDate)` | `readerId`, `startDate`, `endDate` | `List<BorrowingReceipt>` |
-| `BorrowingReceiptDetailsUI.jsp` | `BorrowingReceiptDetailDAO.getDetails(int)` | `receiptId` | `List<BorrowingReceiptDetail>`, mỗi dòng chứa `Document` |
-
-Hai phương thức hỗ trợ `BorrowingReceiptDAO.findReader()` và `BorrowingReceiptDetailDAO.receiptExists()` phân biệt ID không tồn tại với kết quả rỗng.
-
-Luồng bạn đọc:
-
-`ReaderMainUI.jsp → DocumentSearchUI.jsp → DocumentSearchUI.jsp?keyword=... → DocumentDetailsUI.jsp?documentId=...`
-
-Luồng quản lý:
-
-`ManagementMainUI.jsp → ReportUI.jsp → StatisticPeriodUI.jsp → ReaderStatisticsUI.jsp → ReaderBorrowingHistoryUI.jsp → BorrowingReceiptDetailsUI.jsp`
-
-Ngày được truyền tiếp từ thống kê sang lịch sử. Liên kết phiếu truyền `receiptId`, kèm các tham số kỳ/độc giả để quay lại lịch sử; dữ liệu chi tiết luôn lấy theo `receiptId`, không theo tham số độc giả trên URL. Chỉ vai trò MANAGEMENT xem được phiếu.
-
-## Quy tắc dữ liệu và chênh lệch ERD
-
-- Schema mới giữ tên và kiểu cột đã chép, gồm `tblMember.address INT NULL`, `tblDocument.publicationYear DATE`, `tblEmployee.tblMemberid` là cột thường; khóa kế thừa nhân viên là **tblMemberid2**.
-- Theo quan hệ nghiệp vụ 1–N đã chốt, **không tạo** `tblBorrowingReceiptDetailid`, `tblReturnReceiptDetailid`, `tblImportReceiptDetailid` trên bảng phiếu. Thay bằng FK ở bảng chi tiết: `tblBorrowingReceiptDetail.tblBorrowingReceiptid`, `tblReturnReceiptDetail.tblReturnReceiptid`, `tblImportReceiptDetail.tblImportReceiptid`. Các JavaBean phiếu đều chứa `List<...Detail>`, mỗi chi tiết có một Document. `tblReturnReceipt.tblDocumentid` vẫn là cột thường như bản chép; tài liệu từng dòng luôn lấy từ bảng chi tiết.
-- Repository trống, không thực hiện migration hay tự gán lại dòng chi tiết cũ. SQL là **schema khởi tạo**, không phải migration cho database đã có dữ liệu.
-- Tìm chuỗi con theo tiêu đề, không phân biệt hoa/thường; escape `%`, `_`, `!` trong LIKE để chúng là ký tự thật, không phải wildcard do người dùng chèn.
-- Thống kê chỉ hiển thị độc giả có **ít nhất một phiếu trong kỳ**, giảm dần số phiếu, thêm họ tên và ID để thứ tự ổn định khi bằng nhau.
-- Đếm `COUNT(b.id)` trực tiếp trên phiếu, không JOIN chi tiết; không loại trạng thái phiếu. Lịch sử dùng cùng `borrowDate BETWEEN startDate AND endDate`, bao gồm cả hai biên ngày.
-- Ngày thiếu/sai/ngược khoảng và ID không phải số nguyên dương: HTTP 400 kèm thông báo. ID không tồn tại: HTTP 404. Sai vai trò: HTTP 403. Chưa đăng nhập: chuyển đến LoginUI. Lỗi SQL: thông báo dịch vụ HTTP 503, ghi nguyên nhân vào log; không lộ SQL/mật khẩu ra trang.
-
-## Kiểm thử và phạm vi kiểm tra
-
-Bộ kiểm thử `src/test/java/vn/ptit/library/LibraryTest.java` dùng **H2 trong bộ nhớ ở MySQL mode** và embedded Tomcat/Jasper để kiểm tra DAO và HTTP/JSP. Chỉ các dependency có scope `test` sử dụng H2/embedded Tomcat; WAR chạy thật chỉ kết nối MySQL cấu hình ở trên. Bộ test tự gán JDBC URL H2 trước khi tạo connection, không dùng MySQL local và không chạy script trên MySQL của bạn.
+## Kiểm thử và quy ước
 
 ```sh
 mvn clean verify
 ```
 
-Các nhóm kiểm thử bao gồm tìm kiếm tiếng Việt và ba loại tài liệu; số phiếu/lịch sử/chi tiết, biên ngày và phiếu ngoài kỳ; đăng nhập, phân quyền, CSRF, ngày và mã không hợp lệ; HTTP UTF-8, nhãn nút và trạng thái tiếng Việt. Kết quả chạy được ghi trong `target/surefire-reports/`.
+Bộ kiểm thử dùng H2 trong bộ nhớ ở MySQL mode và embedded Tomcat/Jasper. Các kiểm thử bao gồm truy vấn DAO, kế thừa DAO, tìm kiếm tiếng Việt, thống kê theo kỳ, lịch sử/chi tiết phiếu, đăng nhập, phân quyền, CSRF, tham số không hợp lệ và quan hệ dữ liệu demo. Kết quả nằm tại `target/surefire-reports/`.
 
-Theo yêu cầu, không truy cập hay kiểm tra MySQL trên máy. Bạn tự nhập SQL và kiểm tra kết nối MySQL theo hướng dẫn. Kiểm thử H2 không thay thế xác minh trực tiếp trên MySQL.
+Kiểm thử không truy cập MySQL local; khi triển khai vẫn cần kiểm tra cấu hình và kết nối MySQL thực tế.
+
+Ứng dụng dùng UTF-8 cho JSP, request/response và biểu mẫu; MySQL dùng `utf8mb4`. Ngày hiển thị theo `dd/MM/yyyy`. Mật khẩu được kiểm tra bằng PBKDF2; dữ liệu hiển thị được escape HTML, các truy vấn nhận tham số qua `PreparedStatement`.

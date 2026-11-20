@@ -1,9 +1,84 @@
-<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" import="java.util.*,java.time.*,java.sql.SQLException,vn.ptit.library.model.*,vn.ptit.library.dao.*,vn.ptit.library.web.Ui" %>
-<% String pageTitle="Chi tiết phiếu mượn"; String error=null;int receiptId=0;List<BorrowingReceiptDetail> details=null;
-try{receiptId=Ui.id(request.getParameter("receiptId"));BorrowingReceiptDetailDAO dao=new BorrowingReceiptDetailDAO();if(!dao.receiptExists(receiptId)){response.setStatus(404);error="Phiếu mượn không tồn tại.";}else details=dao.getDetails(receiptId);}
-catch(IllegalArgumentException e){response.setStatus(400);error=e.getMessage();}catch(SQLException e){application.log("Receipt details",e);response.setStatus(503);error="Không thể tải dữ liệu. Vui lòng thử lại sau.";}
-String back=null;try{LocalDate[] d=Ui.period(request.getParameter("startDate"),request.getParameter("endDate"));int r=Ui.id(request.getParameter("readerId"));back="ReaderBorrowingHistoryUI.jsp?readerId="+r+"&startDate="+d[0]+"&endDate="+d[1];}catch(IllegalArgumentException ignored){}
- %>
+<%@ page
+    contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"
+    import="java.util.*,java.time.*,java.sql.SQLException,vn.ptit.library.model.*,vn.ptit.library.dao.*,vn.ptit.library.web.Ui"
+%>
+
+<%
+    String pageTitle = "Chi tiết phiếu mượn";
+    String error = null;
+    int receiptId = 0;
+    List<BorrowingReceiptDetail> details = null;
+    try {
+        receiptId = Ui.id(request.getParameter("receiptId"));
+        BorrowingReceiptDetailDAO dao = new BorrowingReceiptDetailDAO();
+        if (!dao.receiptExists(receiptId)) {
+            response.setStatus(404);
+            error = "Phiếu mượn không tồn tại.";
+        } else details = dao.getDetails(receiptId);
+    } catch (IllegalArgumentException e) {
+        response.setStatus(400);
+        error = e.getMessage();
+    } catch (SQLException e) {
+        application.log("Receipt details", e);
+        response.setStatus(503);
+        error = "Không thể tải dữ liệu. Vui lòng thử lại sau.";
+    }
+    String back = null;
+    try {
+        LocalDate[] d =
+                Ui.period(request.getParameter("startDate"), request.getParameter("endDate"));
+        int r = Ui.id(request.getParameter("readerId"));
+        back =
+                "ReaderBorrowingHistoryUI.jsp?readerId="
+                        + r
+                        + "&startDate="
+                        + d[0]
+                        + "&endDate="
+                        + d[1];
+    } catch (IllegalArgumentException ignored) {
+    }
+%>
+
 <%@ include file="/WEB-INF/jspf/header.jspf" %>
-<nav><a href="ReportUI.jsp">Báo cáo</a> / <% if(back!=null){ %><a href="<%=Ui.h(back)%>">Lịch sử mượn</a> / <% } %>Chi tiết phiếu</nav><% if(error!=null){ %><p class="alert"><%=Ui.h(error)%></p><% }else{ %><h2>Phiếu PM-<%=receiptId%></h2><% if(details.isEmpty()){ %><p class="empty">Phiếu chưa có dòng chi tiết.</p><% }else{ %><div class="table-wrap"><table><thead><tr><th>Tài liệu</th><th>Số lượng</th><th>Tình trạng lúc mượn</th></tr></thead><tbody><% for(BorrowingReceiptDetail d:details){ %><tr><td><%=Ui.h(d.getDocument().getTitle())%></td><td><%=d.getQuantity()%></td><td><%=Ui.h(d.getConditionAtBorrowing())%></td></tr><% } %></tbody></table></div><% }} %>
+
+<nav>
+    <a href="ReportUI.jsp">Báo cáo</a>
+    /
+    <% if (back != null) { %>
+        <a href="<%=Ui.h(back)%>">Lịch sử mượn</a>
+        /
+    <% } %>
+    Chi tiết phiếu
+</nav>
+<% if (error != null) { %>
+    <p class="alert"><%=Ui.h(error)%></p>
+<% } else { %>
+    <h2>Phiếu PM-<%=receiptId%></h2>
+    <% if (details.isEmpty()) { %>
+        <p class="empty">Phiếu chưa có dòng chi tiết.</p>
+    <% } else { %>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tài liệu</th>
+                        <th>Số lượng</th>
+                        <th>Tình trạng lúc mượn</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% for (BorrowingReceiptDetail d : details) { %>
+                        <tr>
+                            <td><%=Ui.h(d.getDocument().getTitle())%></td>
+                            <td><%=d.getQuantity()%></td>
+                            <td><%=Ui.h(d.getConditionAtBorrowing())%></td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+<% } %>
+
 <%@ include file="/WEB-INF/jspf/footer.jspf" %>

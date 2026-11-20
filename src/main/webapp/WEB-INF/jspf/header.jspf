@@ -1,2 +1,31 @@
-<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><%=Ui.h(pageTitle)%> · Thư viện PTIT</title><link rel="stylesheet" href="<%=request.getContextPath()%>/assets/style.css"></head><body>
-<header><a class="brand" href="<%=request.getContextPath()%>/index.jsp"><span class="mark">P</span> THƯ VIỆN <b>PTIT</b></a><div class="account"><% Member current=(Member)session.getAttribute("member"); if(current!=null){ %><span><%=Ui.h(current.getFullname())%></span><form accept-charset="UTF-8" method="post" action="<%=request.getContextPath()%>/Logout.jsp"><input type="hidden" name="csrf" value="<%=Ui.h(session.getAttribute("csrf"))%>"><button class="quiet">Đăng xuất</button></form><% } %></div></header><main><p class="eyebrow">KHÔNG GIAN TRI THỨC</p><h1><%=Ui.h(pageTitle)%></h1>
+<%@ page pageEncoding="UTF-8" %>
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title><%=Ui.h(pageTitle)%> · LibMan</title>
+        <link rel="stylesheet" href="<%=request.getContextPath()%>/assets/style.css?v=20261120-2">
+    </head>
+    <body>
+        <header>
+            <a class="brand" href="<%=request.getContextPath()%>/index.jsp">
+                <span class="mark">L</span>
+                <b>LibMan</b>
+            </a>
+            <div class="account">
+                <%
+                    Member current = (Member) session.getAttribute("member");
+                    if (current != null) {
+                %>
+                    <span><%=Ui.h(current.getFullname())%></span>
+                    <form accept-charset="UTF-8" method="post" action="<%=request.getContextPath()%>/Logout.jsp">
+                        <input type="hidden" name="csrf" value="<%=Ui.h(session.getAttribute("csrf"))%>">
+                        <button class="quiet">Đăng xuất</button>
+                    </form>
+                <% } %>
+            </div>
+        </header>
+        <main>
+            <p class="eyebrow">KHÔNG GIAN TRI THỨC</p>
+            <h1><%=Ui.h(pageTitle)%></h1>
